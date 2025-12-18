@@ -1,145 +1,162 @@
-import { zodResolver } from "@hookform/resolvers/zod"
-import { useMutation, useQueryClient } from "@tanstack/react-query"
-import { Pencil } from "lucide-react"
-import { useState } from "react"
-import { useForm } from "react-hook-form"
-import { z } from "zod"
-
-import { type ItemPublic, ItemsService } from "@/client"
 import { Button } from "@/components/ui/button"
 import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
 } from "@/components/ui/dialog"
-import { DropdownMenuItem } from "@/components/ui/dropdown-menu"
 import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
+    Form,
+    FormControl,
+    FormDescription,
+    FormField,
+    FormItem,
+    FormLabel,
+    FormMessage,
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
-import { LoadingButton } from "@/components/ui/loading-button"
-import useCustomToast from "@/hooks/useCustomToast"
-import { handleError } from "@/utils"
+import { Textarea } from "@/components/ui/textarea"
+import { Switch } from "@/components/ui/switch"
 
-const formSchema = z.object({
-  title: z.string().min(1, { message: "Title is required" }),
-  description: z.string().optional(),
-})
+// [변경] use-toast 대신 sonner 사용 (설치 에러 해결 및 코드 간소화)
+import { toast } from "sonner"
 
-type FormData = z.infer<typeof formSchema>
+import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { useForm } from "react-hook-form"
+
+import { type ItemPublic, type ItemUpdate, ItemsService } from "@/client"
+import { type ApiError } from "@/client/core/ApiError"
+import useAuth from "@/hooks/useAuth"
 
 interface EditItemProps {
-  item: ItemPublic
-  onSuccess: () => void
+    item: ItemPublic
+    open: boolean
+    onOpenChange: (open: boolean) => void
 }
 
-const EditItem = ({ item, onSuccess }: EditItemProps) => {
-  const [isOpen, setIsOpen] = useState(false)
-  const queryClient = useQueryClient()
-  const { showSuccessToast, showErrorToast } = useCustomToast()
+export function EditItem({ item, open, onOpenChange }: EditItemProps) {
+    const { user } = useAuth()
+    const queryClient = useQueryClient()
 
-  const form = useForm<FormData>({
-    resolver: zodResolver(formSchema),
-    mode: "onBlur",
-    criteriaMode: "all",
-    defaultValues: {
-      title: item.title,
-      description: item.description ?? undefined,
-    },
-  })
+    const form = useForm<ItemUpdate>({
+        mode: "onChange",
+        defaultValues: {
+            title: item.title,
+            description: item.description ?? "",
+            is_solved: item.is_solved ?? false,
+        },
+    })
 
-  const mutation = useMutation({
-    mutationFn: (data: FormData) =>
-      ItemsService.updateItem({ id: item.id, requestBody: data }),
-    onSuccess: () => {
-      showSuccessToast("Item updated successfully")
-      setIsOpen(false)
-      onSuccess()
-    },
-    onError: handleError.bind(showErrorToast),
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["items"] })
-    },
-  })
+    const mutation = useMutation({
+        mutationFn: (data: ItemUpdate) =>
+            ItemsService.updateItem({ id: item.id, requestBody: data }),
+        onSuccess: () => {
+            // [변경] sonner 문법으로 변경
+            toast.success("수정 완료", {
+                description: "건의사항이 업데이트되었습니다.",
+            })
+            onOpenChange(false)
+            queryClient.invalidateQueries({ queryKey: ["items"] })
+        },
+        onError: (err: ApiError) => {
+            const errDetail = (err.body as any)?.detail
+            toast.error("Error", {
+                description: typeof errDetail === "string" ? errDetail : "Something went wrong",
+            })
+        },
+    })
 
-  const onSubmit = (data: FormData) => {
-    mutation.mutate(data)
-  }
+    const onSubmit = (data: ItemUpdate) => {
+        mutation.mutate(data)
+    }
 
-  return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DropdownMenuItem
-        onSelect={(e) => e.preventDefault()}
-        onClick={() => setIsOpen(true)}
-      >
-        <Pencil />
-        Edit Item
-      </DropdownMenuItem>
-      <DialogContent className="sm:max-w-md">
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)}>
-            <DialogHeader>
-              <DialogTitle>Edit Item</DialogTitle>
-              <DialogDescription>
-                Update the item details below.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <FormField
-                control={form.control}
-                name="title"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>
-                      Title <span className="text-destructive">*</span>
-                    </FormLabel>
-                    <FormControl>
-                      <Input placeholder="Title" type="text" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="sm:max-w-[500px]">
+                <DialogHeader>
+                    <DialogTitle>건의사항 수정</DialogTitle>
+                    <DialogDescription>
+                        게시글 내용을 수정하거나 처리 상태를 변경할 수 있습니다.
+                    </DialogDescription>
+                </DialogHeader>
 
-              <FormField
-                control={form.control}
-                name="description"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Description</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Description" type="text" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
+                <Form {...form}>
+                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                        <FormField
+                            control={form.control}
+                            name="title"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>제목</FormLabel>
+                                    <FormControl>
+                                        <Input {...field} value={field.value ?? ""} placeholder="제목을 입력하세요" />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
 
-            <DialogFooter>
-              <DialogClose asChild>
-                <Button variant="outline" disabled={mutation.isPending}>
-                  Cancel
-                </Button>
-              </DialogClose>
-              <LoadingButton type="submit" loading={mutation.isPending}>
-                Save
-              </LoadingButton>
-            </DialogFooter>
-          </form>
-        </Form>
-      </DialogContent>
-    </Dialog>
-  )
+                        <FormField
+                            control={form.control}
+                            name="description"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>내용</FormLabel>
+                                    <FormControl>
+                                        <Textarea
+                                            {...field}
+                                            value={field.value ?? ""}
+                                            placeholder="상세 내용을 입력하세요"
+                                        />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+
+                        {user?.is_superuser && (
+                            <FormField
+                                control={form.control}
+                                name="is_solved"
+                                render={({ field }) => (
+                                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4 shadow-sm bg-muted/20">
+                                        <div className="space-y-0.5">
+                                            <FormLabel className="text-base font-semibold">
+                                                해결 완료
+                                            </FormLabel>
+                                            <FormDescription>
+                                                이 건의사항이 처리되었다면 체크해주세요.
+                                            </FormDescription>
+                                        </div>
+                                        <FormControl>
+                                            <Switch
+                                                checked={field.value ?? false}
+                                                onCheckedChange={field.onChange}
+                                                className="data-[state=checked]:bg-green-600"
+                                            />
+                                        </FormControl>
+                                    </FormItem>
+                                )}
+                            />
+                        )}
+
+                        <DialogFooter>
+                            <Button
+                                variant="outline"
+                                onClick={() => onOpenChange(false)}
+                                type="button"
+                            >
+                                취소
+                            </Button>
+                            <Button type="submit" disabled={mutation.isPending}>
+                                저장하기
+                            </Button>
+                        </DialogFooter>
+                    </form>
+                </Form>
+            </DialogContent>
+        </Dialog>
+    )
 }
-
-export default EditItem

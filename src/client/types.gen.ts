@@ -21,6 +21,7 @@ export type ItemCreate = {
 export type ItemPublic = {
     title: string;
     description?: (string | null);
+    is_solved : boolean;
     id: string;
     owner_id: string;
 };
@@ -33,6 +34,7 @@ export type ItemsPublic = {
 export type ItemUpdate = {
     title?: (string | null);
     description?: (string | null);
+    is_solved?: (boolean | null);
 };
 
 export type Message = {
