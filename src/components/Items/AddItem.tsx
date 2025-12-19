@@ -75,7 +75,7 @@ const AddItem = () => {
       <DialogTrigger asChild>
         <Button className="my-4">
           <Plus className="mr-2" />
-          Add Item
+          글쓰기
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">

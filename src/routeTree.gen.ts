@@ -19,6 +19,7 @@ import { Route as LayoutSettingsRouteImport } from './routes/_layout/settings'
 import { Route as LayoutItemsRouteImport } from './routes/_layout/items'
 import { Route as LayoutChatRouteImport } from './routes/_layout/chat'
 import { Route as LayoutAdminRouteImport } from './routes/_layout/admin'
+import { Route as LayoutAbTestRouteImport } from './routes/_layout/ab-test'
 
 const SignupRoute = SignupRouteImport.update({
   id: '/signup',
@@ -69,12 +70,18 @@ const LayoutAdminRoute = LayoutAdminRouteImport.update({
   path: '/admin',
   getParentRoute: () => LayoutRoute,
 } as any)
+const LayoutAbTestRoute = LayoutAbTestRouteImport.update({
+  id: '/ab-test',
+  path: '/ab-test',
+  getParentRoute: () => LayoutRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/recover-password': typeof RecoverPasswordRoute
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
+  '/ab-test': typeof LayoutAbTestRoute
   '/admin': typeof LayoutAdminRoute
   '/chat': typeof LayoutChatRoute
   '/items': typeof LayoutItemsRoute
@@ -86,6 +93,7 @@ export interface FileRoutesByTo {
   '/recover-password': typeof RecoverPasswordRoute
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
+  '/ab-test': typeof LayoutAbTestRoute
   '/admin': typeof LayoutAdminRoute
   '/chat': typeof LayoutChatRoute
   '/items': typeof LayoutItemsRoute
@@ -99,6 +107,7 @@ export interface FileRoutesById {
   '/recover-password': typeof RecoverPasswordRoute
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
+  '/_layout/ab-test': typeof LayoutAbTestRoute
   '/_layout/admin': typeof LayoutAdminRoute
   '/_layout/chat': typeof LayoutChatRoute
   '/_layout/items': typeof LayoutItemsRoute
@@ -112,6 +121,7 @@ export interface FileRouteTypes {
     | '/recover-password'
     | '/reset-password'
     | '/signup'
+    | '/ab-test'
     | '/admin'
     | '/chat'
     | '/items'
@@ -123,6 +133,7 @@ export interface FileRouteTypes {
     | '/recover-password'
     | '/reset-password'
     | '/signup'
+    | '/ab-test'
     | '/admin'
     | '/chat'
     | '/items'
@@ -135,6 +146,7 @@ export interface FileRouteTypes {
     | '/recover-password'
     | '/reset-password'
     | '/signup'
+    | '/_layout/ab-test'
     | '/_layout/admin'
     | '/_layout/chat'
     | '/_layout/items'
@@ -222,10 +234,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LayoutAdminRouteImport
       parentRoute: typeof LayoutRoute
     }
+    '/_layout/ab-test': {
+      id: '/_layout/ab-test'
+      path: '/ab-test'
+      fullPath: '/ab-test'
+      preLoaderRoute: typeof LayoutAbTestRouteImport
+      parentRoute: typeof LayoutRoute
+    }
   }
 }
 
 interface LayoutRouteChildren {
+  LayoutAbTestRoute: typeof LayoutAbTestRoute
   LayoutAdminRoute: typeof LayoutAdminRoute
   LayoutChatRoute: typeof LayoutChatRoute
   LayoutItemsRoute: typeof LayoutItemsRoute
@@ -234,6 +254,7 @@ interface LayoutRouteChildren {
 }
 
 const LayoutRouteChildren: LayoutRouteChildren = {
+  LayoutAbTestRoute: LayoutAbTestRoute,
   LayoutAdminRoute: LayoutAdminRoute,
   LayoutChatRoute: LayoutChatRoute,
   LayoutItemsRoute: LayoutItemsRoute,

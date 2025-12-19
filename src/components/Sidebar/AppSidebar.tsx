@@ -1,4 +1,4 @@
-import {Briefcase, Home, MessageSquare, Users,Bot} from "lucide-react"
+import {Briefcase, Home, Users,Bot,FlaskConical} from "lucide-react"
 
 import {SidebarAppearance} from "@/components/Common/Appearance"
 import {Logo} from "@/components/Common/Logo"
@@ -19,6 +19,10 @@ const baseItems: Item[] = [
         title: "AI Chat",
         path: "/chat",
         icon: Bot
+    },{
+        title: "A/B Test",
+        path: "/ab-test",
+        icon: FlaskConical // 실험/테스트를 의미하는 아이콘
     }
 ]
 
