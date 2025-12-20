@@ -24,6 +24,10 @@ export type ItemPublic = {
     is_solved : boolean;
     id: string;
     owner_id: string;
+    created_at: string;
+    updated_at: string;
+    // User 정보 추가
+    owner?: (UserPublic | null);
 };
 
 export type ItemsPublic = {

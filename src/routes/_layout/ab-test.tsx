@@ -203,7 +203,7 @@ function ABTestPage() {
         <div className="container mx-auto py-10 space-y-8 max-w-[1800px]">
             <div className="flex items-center justify-between">
                 <div>
-                    <h2 className="text-3xl font-bold tracking-tight">API A/B Test & Diff</h2>
+                    <h2 className="text-3xl font-bold tracking-tight">API응답 비교 테스트</h2>
                     <p className="text-muted-foreground mt-2">
                         독립적인 설정을 통해 두 API의 응답을 정밀하게 비교합니다.
                     </p>
@@ -234,16 +234,16 @@ function ABTestPage() {
                     <CardContent>
                         <Tabs defaultValue="configA" className="w-full">
                             <TabsList className="grid w-full grid-cols-2 mb-4">
-                                <TabsTrigger value="configA">Original (A)</TabsTrigger>
-                                <TabsTrigger value="configB">Refactored (B)</TabsTrigger>
+                                <TabsTrigger value="configA">Original Server</TabsTrigger>
+                                <TabsTrigger value="configB">Other Server</TabsTrigger>
                             </TabsList>
 
                             <TabsContent value="configA">
-                                <RequestConfigForm form={form} basePath="configA" label="Original Server (A)" />
+                                <RequestConfigForm form={form} basePath="configA" label="Original Server" />
                             </TabsContent>
 
                             <TabsContent value="configB">
-                                <RequestConfigForm form={form} basePath="configB" label="Refactored Server (B)" />
+                                <RequestConfigForm form={form} basePath="configB" label="Other Server" />
                             </TabsContent>
                         </Tabs>
                     </CardContent>
@@ -253,8 +253,8 @@ function ABTestPage() {
                 <div className="lg:col-span-7 flex flex-col gap-4">
                     {/* 상단 상태 카드 (항상 표시) */}
                     <div className="grid grid-cols-2 gap-4">
-                        <StatusCard label="Original (A)" status={statusA} duration={durationA} />
-                        <StatusCard label="Refactored (B)" status={statusB} duration={durationB} />
+                        <StatusCard label="Original Server" status={statusA} duration={durationA} />
+                        <StatusCard label="Other Server" status={statusB} duration={durationB} />
                     </div>
 
                     {/* 뷰어 탭 (Diff / A / B) */}
@@ -264,10 +264,10 @@ function ABTestPage() {
                                 <Split className="h-4 w-4" /> Diff Comparison
                             </TabsTrigger>
                             <TabsTrigger value="responseA" className="gap-2">
-                                <FileText className="h-4 w-4" /> Original (A)
+                                <FileText className="h-4 w-4" /> Original Server
                             </TabsTrigger>
                             <TabsTrigger value="responseB" className="gap-2">
-                                <FileText className="h-4 w-4" /> Refactored (B)
+                                <FileText className="h-4 w-4" /> Other Server
                             </TabsTrigger>
                         </TabsList>
 
@@ -309,7 +309,7 @@ function ABTestPage() {
                         {/* 2. Response A View */}
                         <TabsContent value="responseA" className="flex-1 m-0">
                             <SingleResponseViewer
-                                title="Original Server (A) Response"
+                                title="Original Server Response"
                                 value={resultA}
                                 language={editorLanguage}
                             />
@@ -318,7 +318,7 @@ function ABTestPage() {
                         {/* 3. Response B View */}
                         <TabsContent value="responseB" className="flex-1 m-0">
                             <SingleResponseViewer
-                                title="Refactored Server (B) Response"
+                                title="Others Server Response"
                                 value={resultB}
                                 language={editorLanguage}
                             />
