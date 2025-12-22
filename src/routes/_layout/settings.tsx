@@ -14,7 +14,7 @@ const tabsConfig = [
     { value: "my-profile", title: "My profile", component: UserInformation },
     { value: "password", title: "Password", component: ChangePassword },
     // 여기에 추가 (Danger zone 보다 위에 배치하는 것이 자연스럽습니다)
-    { value: "my-items", title: "My Items", component: MyItemsTable },
+    { value: "my-items", title: "My Posts", component: MyItemsTable },
     { value: "danger-zone", title: "Danger zone", component: DeleteAccount },
 ]
 

@@ -17,7 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge"
 
 // [필수] 라우트 정의
-export const Route = createFileRoute('/_layout/ab-test')({
+export const Route = createFileRoute('/_layout/test/diff-test')({
     component: ABTestPage,
 })
 
@@ -276,7 +276,7 @@ function ABTestPage() {
                             <Card className="flex-1 h-full overflow-hidden flex flex-col border shadow-md">
                                 <div className="bg-muted/40 p-2 border-b flex items-center gap-2 text-xs text-muted-foreground justify-center select-none">
                                     <ArrowRightLeft className="h-3 w-3" />
-                                    <span>Left: Original (A) vs Right: Refactored (B)</span>
+                                    <span>Left: Original vs Right: Others</span>
                                     <Badge variant="outline" className="ml-auto text-[10px] uppercase">
                                         Format: {editorLanguage}
                                     </Badge>

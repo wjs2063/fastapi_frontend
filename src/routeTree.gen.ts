@@ -18,9 +18,10 @@ import { Route as LayoutIndexRouteImport } from './routes/_layout/index'
 import { Route as LayoutSettingsRouteImport } from './routes/_layout/settings'
 import { Route as LayoutMyItemsRouteImport } from './routes/_layout/my-items'
 import { Route as LayoutItemsRouteImport } from './routes/_layout/items'
-import { Route as LayoutChatRouteImport } from './routes/_layout/chat'
 import { Route as LayoutAdminRouteImport } from './routes/_layout/admin'
-import { Route as LayoutAbTestRouteImport } from './routes/_layout/ab-test'
+import { Route as LayoutChatIndexRouteImport } from './routes/_layout/chat/index'
+import { Route as LayoutTestDiffTestRouteImport } from './routes/_layout/test/diff-test'
+import { Route as LayoutChatMenuRecommendRouteImport } from './routes/_layout/chat/menu-recommend'
 
 const SignupRoute = SignupRouteImport.update({
   id: '/signup',
@@ -66,19 +67,24 @@ const LayoutItemsRoute = LayoutItemsRouteImport.update({
   path: '/items',
   getParentRoute: () => LayoutRoute,
 } as any)
-const LayoutChatRoute = LayoutChatRouteImport.update({
-  id: '/chat',
-  path: '/chat',
-  getParentRoute: () => LayoutRoute,
-} as any)
 const LayoutAdminRoute = LayoutAdminRouteImport.update({
   id: '/admin',
   path: '/admin',
   getParentRoute: () => LayoutRoute,
 } as any)
-const LayoutAbTestRoute = LayoutAbTestRouteImport.update({
-  id: '/ab-test',
-  path: '/ab-test',
+const LayoutChatIndexRoute = LayoutChatIndexRouteImport.update({
+  id: '/chat/',
+  path: '/chat/',
+  getParentRoute: () => LayoutRoute,
+} as any)
+const LayoutTestDiffTestRoute = LayoutTestDiffTestRouteImport.update({
+  id: '/test/diff-test',
+  path: '/test/diff-test',
+  getParentRoute: () => LayoutRoute,
+} as any)
+const LayoutChatMenuRecommendRoute = LayoutChatMenuRecommendRouteImport.update({
+  id: '/chat/menu-recommend',
+  path: '/chat/menu-recommend',
   getParentRoute: () => LayoutRoute,
 } as any)
 
@@ -87,26 +93,28 @@ export interface FileRoutesByFullPath {
   '/recover-password': typeof RecoverPasswordRoute
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
-  '/ab-test': typeof LayoutAbTestRoute
   '/admin': typeof LayoutAdminRoute
-  '/chat': typeof LayoutChatRoute
   '/items': typeof LayoutItemsRoute
   '/my-items': typeof LayoutMyItemsRoute
   '/settings': typeof LayoutSettingsRoute
   '/': typeof LayoutIndexRoute
+  '/chat/menu-recommend': typeof LayoutChatMenuRecommendRoute
+  '/test/diff-test': typeof LayoutTestDiffTestRoute
+  '/chat': typeof LayoutChatIndexRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/recover-password': typeof RecoverPasswordRoute
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
-  '/ab-test': typeof LayoutAbTestRoute
   '/admin': typeof LayoutAdminRoute
-  '/chat': typeof LayoutChatRoute
   '/items': typeof LayoutItemsRoute
   '/my-items': typeof LayoutMyItemsRoute
   '/settings': typeof LayoutSettingsRoute
   '/': typeof LayoutIndexRoute
+  '/chat/menu-recommend': typeof LayoutChatMenuRecommendRoute
+  '/test/diff-test': typeof LayoutTestDiffTestRoute
+  '/chat': typeof LayoutChatIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -115,13 +123,14 @@ export interface FileRoutesById {
   '/recover-password': typeof RecoverPasswordRoute
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
-  '/_layout/ab-test': typeof LayoutAbTestRoute
   '/_layout/admin': typeof LayoutAdminRoute
-  '/_layout/chat': typeof LayoutChatRoute
   '/_layout/items': typeof LayoutItemsRoute
   '/_layout/my-items': typeof LayoutMyItemsRoute
   '/_layout/settings': typeof LayoutSettingsRoute
   '/_layout/': typeof LayoutIndexRoute
+  '/_layout/chat/menu-recommend': typeof LayoutChatMenuRecommendRoute
+  '/_layout/test/diff-test': typeof LayoutTestDiffTestRoute
+  '/_layout/chat/': typeof LayoutChatIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -130,26 +139,28 @@ export interface FileRouteTypes {
     | '/recover-password'
     | '/reset-password'
     | '/signup'
-    | '/ab-test'
     | '/admin'
-    | '/chat'
     | '/items'
     | '/my-items'
     | '/settings'
     | '/'
+    | '/chat/menu-recommend'
+    | '/test/diff-test'
+    | '/chat'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/login'
     | '/recover-password'
     | '/reset-password'
     | '/signup'
-    | '/ab-test'
     | '/admin'
-    | '/chat'
     | '/items'
     | '/my-items'
     | '/settings'
     | '/'
+    | '/chat/menu-recommend'
+    | '/test/diff-test'
+    | '/chat'
   id:
     | '__root__'
     | '/_layout'
@@ -157,13 +168,14 @@ export interface FileRouteTypes {
     | '/recover-password'
     | '/reset-password'
     | '/signup'
-    | '/_layout/ab-test'
     | '/_layout/admin'
-    | '/_layout/chat'
     | '/_layout/items'
     | '/_layout/my-items'
     | '/_layout/settings'
     | '/_layout/'
+    | '/_layout/chat/menu-recommend'
+    | '/_layout/test/diff-test'
+    | '/_layout/chat/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -239,13 +251,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LayoutItemsRouteImport
       parentRoute: typeof LayoutRoute
     }
-    '/_layout/chat': {
-      id: '/_layout/chat'
-      path: '/chat'
-      fullPath: '/chat'
-      preLoaderRoute: typeof LayoutChatRouteImport
-      parentRoute: typeof LayoutRoute
-    }
     '/_layout/admin': {
       id: '/_layout/admin'
       path: '/admin'
@@ -253,34 +258,50 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LayoutAdminRouteImport
       parentRoute: typeof LayoutRoute
     }
-    '/_layout/ab-test': {
-      id: '/_layout/ab-test'
-      path: '/ab-test'
-      fullPath: '/ab-test'
-      preLoaderRoute: typeof LayoutAbTestRouteImport
+    '/_layout/chat/': {
+      id: '/_layout/chat/'
+      path: '/chat'
+      fullPath: '/chat'
+      preLoaderRoute: typeof LayoutChatIndexRouteImport
+      parentRoute: typeof LayoutRoute
+    }
+    '/_layout/test/diff-test': {
+      id: '/_layout/test/diff-test'
+      path: '/test/diff-test'
+      fullPath: '/test/diff-test'
+      preLoaderRoute: typeof LayoutTestDiffTestRouteImport
+      parentRoute: typeof LayoutRoute
+    }
+    '/_layout/chat/menu-recommend': {
+      id: '/_layout/chat/menu-recommend'
+      path: '/chat/menu-recommend'
+      fullPath: '/chat/menu-recommend'
+      preLoaderRoute: typeof LayoutChatMenuRecommendRouteImport
       parentRoute: typeof LayoutRoute
     }
   }
 }
 
 interface LayoutRouteChildren {
-  LayoutAbTestRoute: typeof LayoutAbTestRoute
   LayoutAdminRoute: typeof LayoutAdminRoute
-  LayoutChatRoute: typeof LayoutChatRoute
   LayoutItemsRoute: typeof LayoutItemsRoute
   LayoutMyItemsRoute: typeof LayoutMyItemsRoute
   LayoutSettingsRoute: typeof LayoutSettingsRoute
   LayoutIndexRoute: typeof LayoutIndexRoute
+  LayoutChatMenuRecommendRoute: typeof LayoutChatMenuRecommendRoute
+  LayoutTestDiffTestRoute: typeof LayoutTestDiffTestRoute
+  LayoutChatIndexRoute: typeof LayoutChatIndexRoute
 }
 
 const LayoutRouteChildren: LayoutRouteChildren = {
-  LayoutAbTestRoute: LayoutAbTestRoute,
   LayoutAdminRoute: LayoutAdminRoute,
-  LayoutChatRoute: LayoutChatRoute,
   LayoutItemsRoute: LayoutItemsRoute,
   LayoutMyItemsRoute: LayoutMyItemsRoute,
   LayoutSettingsRoute: LayoutSettingsRoute,
   LayoutIndexRoute: LayoutIndexRoute,
+  LayoutChatMenuRecommendRoute: LayoutChatMenuRecommendRoute,
+  LayoutTestDiffTestRoute: LayoutTestDiffTestRoute,
+  LayoutChatIndexRoute: LayoutChatIndexRoute,
 }
 
 const LayoutRouteWithChildren =
