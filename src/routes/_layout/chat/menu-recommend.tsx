@@ -1,13 +1,19 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useState, useEffect, useRef } from 'react'
-import { Send, Bot, User, MapPin, Loader2, Search, X, ArrowLeft, Settings, Trash2, Calendar as CalendarIcon, Save } from 'lucide-react'
+import {
+    Send, Bot, User, MapPin, Loader2, Search, X, ArrowLeft, Settings,
+    Trash2, Calendar as CalendarIcon, Save, Pencil, RefreshCw
+} from 'lucide-react'
 import TextareaAutosize from 'react-textarea-autosize'
+import { format } from "date-fns"
+import { ko } from "date-fns/locale"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { cn } from "@/lib/utils"
 import {
     Dialog,
     DialogContent,
@@ -23,6 +29,19 @@ import {
     SheetFooter,
     SheetClose
 } from "@/components/ui/sheet"
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select"
+import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from "@/components/ui/popover"
+import { Calendar } from "@/components/ui/calendar"
 import { toast } from "sonner"
 
 export const Route = createFileRoute('/_layout/chat/menu-recommend')({
@@ -58,26 +77,67 @@ type KakaoPlace = {
     place_url: string
 }
 
+type MealType = "BREAKFAST" | "LUNCH" | "DINNER" | "SNACK"
+
+const MEAL_TYPE_LABELS: Record<MealType, string> = {
+    BREAKFAST: "아침",
+    LUNCH: "점심",
+    DINNER: "저녁",
+    SNACK: "간식"
+}
+
+const MEAL_TYPES: MealType[] = ["BREAKFAST", "LUNCH", "DINNER", "SNACK"]
+
 type MealLog = {
     id: number
     menu_name: string
+    meal_type: MealType
     created_at: string
 }
 
-// --- [Sub Component] 사용자 취향 관리 시트 ---
 function UserPreferenceSheet({ isOpen, onOpenChange }: { isOpen: boolean, onOpenChange: (open: boolean) => void }) {
     const [tastes, setTastes] = useState("")
-    const [newMeal, setNewMeal] = useState("")
     const [meals, setMeals] = useState<MealLog[]>([])
+
+    // [입력 폼 상태]
+    const [inputMenu, setInputMenu] = useState("")
+    const [inputType, setInputType] = useState<MealType>("LUNCH")
+    // [추가] 입력 날짜 상태 (기본값: 오늘)
+    const [inputDate, setInputDate] = useState<Date>(new Date())
+
+    const [editingId, setEditingId] = useState<number | null>(null)
     const [isSaving, setIsSaving] = useState(false)
 
-    // 1. 시트가 열릴 때마다 최신 데이터 로드
+    // [필터 상태] - 초기값 undefined (전체 보기)
+    const [filterDate, setFilterDate] = useState<Date | undefined>(undefined)
+    const [filterType, setFilterType] = useState<MealType | "ALL">("ALL")
+
     useEffect(() => {
         if (isOpen) {
             fetchPreferences()
             fetchMeals()
+            resetForm()
+            setFilterDate(undefined)
         }
     }, [isOpen])
+
+    const filteredMeals = meals.filter(meal => {
+        let dateMatch = true
+        if (filterDate) {
+            const mealDateStr = format(new Date(meal.created_at), 'yyyy-MM-dd')
+            const filterDateStr = format(filterDate, 'yyyy-MM-dd')
+            dateMatch = mealDateStr === filterDateStr
+        }
+        const typeMatch = filterType === "ALL" ? true : meal.meal_type === filterType
+        return dateMatch && typeMatch
+    })
+
+    const resetForm = () => {
+        setInputMenu("")
+        setInputType("LUNCH")
+        setInputDate(new Date()) // 오늘로 리셋
+        setEditingId(null)
+    }
 
     const getApiConfig = () => {
         const url = import.meta.env.VITE_AI_AGENT_URL || "http://localhost:8000"
@@ -86,28 +146,19 @@ function UserPreferenceSheet({ isOpen, onOpenChange }: { isOpen: boolean, onOpen
         return { baseUrl: `${protocol}://${cleanHost}`, token: localStorage.getItem("access_token") }
     }
 
-    // [핵심 수정] 취향 데이터 불러오기
     const fetchPreferences = async () => {
         const { baseUrl, token } = getApiConfig()
         if (!token) return
-
         try {
             const res = await fetch(`${baseUrl}/api/v1/users/me/preferences`, {
                 headers: { Authorization: `Bearer ${token}` }
             })
-
             if (res.ok) {
                 const data = await res.json()
-                // [중요] DB에 저장된 값이 있으면 그 값을, 없으면 빈 문자열을 설정
-                if (data && typeof data.tastes === 'string') {
-                    setTastes(data.tastes)
-                } else {
-                    setTastes("")
-                }
+                setTastes(data?.tastes || "")
             }
         } catch (error) {
             console.error("Failed to fetch preferences", error)
-            setTastes("") // 에러 시 초기화
         }
     }
 
@@ -127,27 +178,42 @@ function UserPreferenceSheet({ isOpen, onOpenChange }: { isOpen: boolean, onOpen
         }
     }
 
-    const handleAddMeal = async () => {
-        if (!newMeal.trim()) return
+    const handleUpsertMeal = async () => {
+        if (!inputMenu.trim()) return
         const { baseUrl, token } = getApiConfig()
+
+        const payload = {
+            menu_name: inputMenu,
+            meal_type: inputType,
+            // [추가] 선택한 날짜 전송 (ISO 문자열)
+            created_at: inputDate.toISOString()
+        }
+
         try {
-            const res = await fetch(`${baseUrl}/api/v1/users/me/meals`, {
-                method: 'POST',
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ menu_name: newMeal })
-            })
-            if (res.ok) {
-                setNewMeal("")
-                fetchMeals()
-                toast.success("식사 기록이 추가되었습니다.")
+            let res;
+            if (editingId) {
+                res = await fetch(`${baseUrl}/api/v1/users/me/meals/${editingId}`, {
+                    method: 'PUT',
+                    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                })
             } else {
-                toast.error("추가 실패: 서버 오류")
+                res = await fetch(`${baseUrl}/api/v1/users/me/meals`, {
+                    method: 'POST',
+                    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                })
+            }
+
+            if (res.ok) {
+                toast.success(editingId ? "수정되었습니다." : "추가되었습니다.")
+                resetForm()
+                fetchMeals()
+            } else {
+                toast.error("서버 오류가 발생했습니다.")
             }
         } catch (error) {
-            toast.error("추가 실패: 네트워크 오류")
+            toast.error("네트워크 오류가 발생했습니다.")
         }
     }
 
@@ -160,6 +226,7 @@ function UserPreferenceSheet({ isOpen, onOpenChange }: { isOpen: boolean, onOpen
             })
             if (res.ok) {
                 setMeals(prev => prev.filter(m => m.id !== id))
+                if (editingId === id) resetForm()
                 toast.success("삭제되었습니다.")
             }
         } catch (error) {
@@ -167,106 +234,250 @@ function UserPreferenceSheet({ isOpen, onOpenChange }: { isOpen: boolean, onOpen
         }
     }
 
-    // [수정] 취향 저장 (덮어쓰기)
+    const handleEditClick = (meal: MealLog) => {
+        setInputMenu(meal.menu_name)
+        setInputType(meal.meal_type)
+        // [추가] 수정 시 기존 날짜 불러오기
+        setInputDate(new Date(meal.created_at))
+        setEditingId(meal.id)
+    }
+
     const handleSaveTastesOnly = async () => {
         setIsSaving(true)
         const { baseUrl, token } = getApiConfig()
         try {
             const res = await fetch(`${baseUrl}/api/v1/users/me/preferences`, {
                 method: 'PUT',
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
+                headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
                 body: JSON.stringify({ tastes })
             })
-
-            if (res.ok) {
-                toast.success("취향 정보가 업데이트되었습니다.")
-            } else {
-                toast.error("저장에 실패했습니다.")
-            }
+            if (res.ok) toast.success("취향 정보가 저장되었습니다.")
+            else toast.error("저장 실패")
         } catch (error) {
-            toast.error("네트워크 오류가 발생했습니다.")
+            toast.error("오류 발생")
         } finally {
             setIsSaving(false)
         }
     }
 
+    const getTypeColor = (type: string) => {
+        switch (type) {
+            case "BREAKFAST": return "bg-orange-100 text-orange-700 border-orange-200"
+            case "LUNCH": return "bg-blue-100 text-blue-700 border-blue-200"
+            case "DINNER": return "bg-indigo-100 text-indigo-700 border-indigo-200"
+            case "SNACK": return "bg-pink-100 text-pink-700 border-pink-200"
+            default: return "bg-gray-100 text-gray-700"
+        }
+    }
+
     return (
         <Sheet open={isOpen} onOpenChange={onOpenChange}>
-            <SheetContent className="overflow-y-auto w-full sm:max-w-md bg-background">
+            <SheetContent className="overflow-y-auto w-full sm:max-w-md bg-background flex flex-col h-full">
                 <SheetHeader>
-                    <SheetTitle>내 취향 & 식사 기록</SheetTitle>
-                    <SheetDescription>
-                        AI가 중복되지 않는 메뉴를 추천하도록 정보를 관리하세요.
-                    </SheetDescription>
+                    <SheetTitle>식사 기록 관리</SheetTitle>
+                    <SheetDescription>취향과 식사 기록을 바탕으로 메뉴를 추천합니다.</SheetDescription>
                 </SheetHeader>
 
-                <div className="flex flex-col gap-8 py-6">
-                    {/* 1. 식성/취향 섹션 */}
-                    <div className="flex flex-col gap-3">
-                        <Label htmlFor="tastes" className="text-base font-semibold text-foreground">
-                            😋 식성 / 취향
-                        </Label>
-                        <Textarea
-                            id="tastes"
-                            placeholder="예: 매운거 좋아함, 비건, 가성비 중요, 오이 싫어함"
-                            value={tastes}
-                            onChange={(e) => setTastes(e.target.value)}
-                            className="min-h-[100px] bg-background text-foreground border-input resize-none focus-visible:ring-1"
-                        />
-                        <div className="flex justify-end">
-                            <Button onClick={handleSaveTastesOnly} disabled={isSaving} size="sm">
-                                {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                                저장하기
+                <div className="flex flex-col gap-6 py-4 flex-1 overflow-hidden">
+                    {/* 1. 취향 섹션 */}
+                    <div className="flex flex-col gap-2 shrink-0">
+                        <Label className="text-sm font-semibold">😋 나의 식성 (AI 참고용)</Label>
+                        <div className="flex gap-2">
+                            <Textarea
+                                placeholder="예: 매운거 좋아함, 오이 싫어함, 가성비 중요"
+                                value={tastes}
+                                onChange={(e) => setTastes(e.target.value)}
+                                className="min-h-[60px] resize-none text-sm"
+                            />
+                            <Button
+                                onClick={handleSaveTastesOnly}
+                                disabled={isSaving}
+                                size="icon"
+                                className="h-[60px] w-[60px] shrink-0"
+                                variant="outline"
+                            >
+                                {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                             </Button>
                         </div>
                     </div>
 
-                    {/* 2. 식사 기록 섹션 */}
-                    <div className="flex flex-col gap-3">
-                        <Label className="text-base font-semibold text-foreground">
-                            🍛 최근 먹은 음식
-                        </Label>
-                        <div className="flex gap-2">
-                            <Input
-                                placeholder="예: 오늘 점심 김치찌개"
-                                value={newMeal}
-                                onChange={(e) => setNewMeal(e.target.value)}
-                                onKeyDown={(e) => e.key === 'Enter' && handleAddMeal()}
-                                className="bg-background text-foreground"
-                            />
-                            <Button size="sm" onClick={handleAddMeal}>추가</Button>
+                    <div className="h-px bg-border shrink-0" />
+
+                    {/* 2. 입력/수정 폼 */}
+                    <div className="flex flex-col gap-3 shrink-0 p-4 border rounded-xl bg-muted/30">
+                        <div className="flex justify-between items-center">
+                            <Label className="text-sm font-semibold flex items-center gap-2">
+                                {editingId ? <><Pencil className="w-3.5 h-3.5" /> 기록 수정</> : <><RefreshCw className="w-3.5 h-3.5" /> 식사 추가</>}
+                            </Label>
+                            {editingId && (
+                                <Button variant="ghost" size="sm" onClick={resetForm} className="h-6 text-xs px-2 hover:bg-background">
+                                    <X className="w-3 h-3 mr-1" /> 취소
+                                </Button>
+                            )}
                         </div>
 
-                        <div className="border rounded-md mt-1 bg-muted/20 max-h-[300px] overflow-y-auto p-2 space-y-2">
-                            {meals.length === 0 ? (
-                                <div className="p-6 text-center text-sm text-muted-foreground">
-                                    아직 기록된 식사가 없습니다.<br/>위 입력창에 드신 메뉴를 추가해보세요.
+                        <div className="flex gap-2">
+                            <div className="flex-1 flex gap-2">
+                                {/* [추가] 입력 날짜 선택 */}
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                        <Button
+                                            variant={"outline"}
+                                            className={cn(
+                                                "w-[110px] justify-start text-left font-normal text-xs px-2 h-9",
+                                                !inputDate && "text-muted-foreground"
+                                            )}
+                                        >
+                                            <CalendarIcon className="mr-2 h-3 w-3" />
+                                            {inputDate ? format(inputDate, "MM.dd") : <span>날짜</span>}
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0" align="start">
+                                        <Calendar
+                                            mode="single"
+                                            selected={inputDate}
+                                            // onSelect 시 undefined 방지 (항상 날짜가 있도록)
+                                            onSelect={(date) => date && setInputDate(date)}
+                                            initialFocus
+                                            locale={ko}
+                                        />
+                                    </PopoverContent>
+                                </Popover>
+
+                                <Input
+                                    placeholder="메뉴 이름 (예: 김치찌개)"
+                                    value={inputMenu}
+                                    onChange={(e) => setInputMenu(e.target.value)}
+                                    onKeyDown={(e) => e.key === 'Enter' && handleUpsertMeal()}
+                                    className="bg-background flex-1 h-9"
+                                />
+                            </div>
+                            <Button onClick={handleUpsertMeal} className={editingId ? "bg-green-600 hover:bg-green-700 w-14" : "w-14"}>
+                                {editingId ? "수정" : "등록"}
+                            </Button>
+                        </div>
+
+                        {/* 식사 유형 선택 */}
+                        <div className="flex gap-1">
+                            {MEAL_TYPES.map((type) => (
+                                <Button
+                                    key={type}
+                                    type="button"
+                                    variant={inputType === type ? "default" : "outline"}
+                                    size="sm"
+                                    className={`flex-1 text-xs h-7 ${inputType === type ? '' : 'bg-background text-muted-foreground border-transparent shadow-none hover:bg-background hover:text-foreground'}`}
+                                    onClick={() => setInputType(type)}
+                                >
+                                    {MEAL_TYPE_LABELS[type]}
+                                </Button>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* 3. 리스트 및 필터 섹션 */}
+                    <div className="flex flex-col gap-2 flex-1 overflow-hidden">
+                        <div className="flex items-center justify-between gap-2 shrink-0">
+                            <Label className="text-sm font-semibold flex items-center gap-1">
+                                🍛 기록 목록
+                                <Badge variant="secondary" className="text-[10px] h-5 px-1.5">{filteredMeals.length}</Badge>
+                            </Label>
+
+                            {/* 필터 툴바 */}
+                            <div className="flex items-center gap-1.5">
+                                {/* [필터] 날짜 선택 */}
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                        <Button
+                                            variant={"outline"}
+                                            size="sm"
+                                            className={cn(
+                                                "h-8 w-[110px] justify-start text-left font-normal text-xs px-2",
+                                                !filterDate && "text-muted-foreground"
+                                            )}
+                                        >
+                                            <CalendarIcon className="mr-2 h-3 w-3" />
+                                            {filterDate ? format(filterDate, "yyyy-MM-dd") : <span>전체 날짜</span>}
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0" align="end">
+                                        <Calendar
+                                            mode="single"
+                                            selected={filterDate}
+                                            onSelect={setFilterDate}
+                                            initialFocus
+                                            locale={ko}
+                                        />
+                                    </PopoverContent>
+                                </Popover>
+                                {filterDate && (
+                                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setFilterDate(undefined)}>
+                                        <X className="h-3 w-3" />
+                                    </Button>
+                                )}
+
+                                {/* [필터] 타입 필터 */}
+                                <Select value={filterType} onValueChange={(val) => setFilterType(val as MealType | "ALL")}>
+                                    <SelectTrigger className="h-8 w-[70px] text-xs px-2 bg-background">
+                                        <SelectValue placeholder="전체" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="ALL">전체</SelectItem>
+                                        {MEAL_TYPES.map((type) => (
+                                            <SelectItem key={type} value={type}>
+                                                {MEAL_TYPE_LABELS[type]}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
+
+                        <div className="border rounded-lg bg-background flex-1 overflow-y-auto p-2">
+                            {filteredMeals.length === 0 ? (
+                                <div className="h-full flex flex-col items-center justify-center text-muted-foreground gap-2">
+                                    <Search className="h-8 w-8 opacity-20" />
+                                    <span className="text-xs">
+                                        {filterDate ? format(filterDate, "MM월 dd일") : "저장된"} 기록이 없습니다.
+                                    </span>
                                 </div>
                             ) : (
                                 <ul className="space-y-2">
-                                    {meals.map((meal) => (
+                                    {filteredMeals.map((meal) => (
                                         <li
                                             key={meal.id}
-                                            className="flex items-center justify-between p-3 text-sm bg-card border rounded-lg shadow-sm"
+                                            className={`flex items-center justify-between p-3 text-sm border rounded-lg shadow-sm transition-all hover:bg-accent/5 ${editingId === meal.id ? 'border-primary ring-1 ring-primary/20 bg-primary/5' : 'bg-card'}`}
                                         >
-                                            <div className="flex flex-col gap-0.5">
-                                                <span className="font-semibold text-card-foreground">{meal.menu_name}</span>
+                                            <div className="flex flex-col gap-1.5">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="font-semibold">{meal.menu_name}</span>
+                                                    <Badge variant="outline" className={`text-[10px] px-1.5 py-0 h-4 font-normal ${getTypeColor(meal.meal_type)}`}>
+                                                        {MEAL_TYPE_LABELS[meal.meal_type]}
+                                                    </Badge>
+                                                </div>
                                                 <span className="text-[10px] text-muted-foreground flex items-center gap-1">
                                                     <CalendarIcon className="h-3 w-3" />
-                                                    {new Date(meal.created_at).toLocaleDateString()}
+                                                    {format(new Date(meal.created_at), "yyyy.MM.dd")}
                                                 </span>
                                             </div>
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-full"
-                                                onClick={() => handleDeleteMeal(meal.id)}
-                                            >
-                                                <Trash2 className="h-4 w-4" />
-                                            </Button>
+
+                                            <div className="flex items-center gap-0.5">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-7 w-7 text-muted-foreground hover:text-primary rounded-full"
+                                                    onClick={() => handleEditClick(meal)}
+                                                >
+                                                    <Pencil className="h-3.5 w-3.5" />
+                                                </Button>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-full"
+                                                    onClick={() => handleDeleteMeal(meal.id)}
+                                                >
+                                                    <Trash2 className="h-3.5 w-3.5" />
+                                                </Button>
+                                            </div>
                                         </li>
                                     ))}
                                 </ul>
@@ -275,11 +486,9 @@ function UserPreferenceSheet({ isOpen, onOpenChange }: { isOpen: boolean, onOpen
                     </div>
                 </div>
 
-                <SheetFooter>
+                <SheetFooter className="mt-2">
                     <SheetClose asChild>
-                        <Button variant="outline" className="w-full">
-                            닫기
-                        </Button>
+                        <Button variant="outline" className="w-full">닫기</Button>
                     </SheetClose>
                 </SheetFooter>
             </SheetContent>
@@ -287,12 +496,13 @@ function UserPreferenceSheet({ isOpen, onOpenChange }: { isOpen: boolean, onOpen
     )
 }
 
-// --- [Sub Component] 지도 선택 모달 ---
+// ... (LocationPickerModal 및 ChatPage는 기존과 동일하게 유지)
 function LocationPickerModal({ onSelectLocation, isOpen, onOpenChange }: {
     onSelectLocation: (loc: Location) => void,
     isOpen: boolean,
     onOpenChange: (open: boolean) => void
 }) {
+    // ... (기존과 동일 - 생략)
     const mapRef = useRef<HTMLDivElement>(null)
     const [mapInstance, setMapInstance] = useState<any>(null)
     const [markerInstance, setMarkerInstance] = useState<any>(null)
@@ -435,7 +645,7 @@ function LocationPickerModal({ onSelectLocation, isOpen, onOpenChange }: {
     )
 }
 
-// --- [Main Page] ---
+
 function ChatPage() {
     const agentId = "menu-recommend"
     const [messages, setMessages] = useState<Message[]>([
