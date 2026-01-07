@@ -9,7 +9,7 @@ import {
     ChevronsLeft,
     ChevronsRight
 } from "lucide-react"
-import { Suspense, useState, useMemo, useEffect } from "react"
+import { Suspense, useState, useMemo, useEffect } from "react" // 'React' 제거
 
 import { ItemsService } from "@/client"
 import { DataTable } from "@/components/Common/DataTable"
@@ -34,13 +34,7 @@ function getItemsQueryOptions() {
     }
 }
 
-export const Route = createFileRoute("/_layout/items")({
-    component: SuggestionBoard,
-    head: () => ({
-        meta: [{ title: "건의사항 게시판" }],
-    }),
-})
-
+// 1. SuggestionsTableContent 컴포넌트
 function SuggestionsTableContent() {
     const { data: items } = useSuspenseQuery(getItemsQueryOptions())
 
@@ -165,6 +159,7 @@ function SuggestionsTableContent() {
     )
 }
 
+// 2. SuggestionsTable (Suspense 래퍼)
 function SuggestionsTable() {
     return (
         <Suspense fallback={<PendingItems />}>
@@ -173,6 +168,7 @@ function SuggestionsTable() {
     )
 }
 
+// 3. 메인 SuggestionBoard 컴포넌트
 function SuggestionBoard() {
     return (
         <div className="flex flex-col gap-6 max-w-6xl mx-auto w-full py-6 px-4 sm:px-0">
@@ -189,3 +185,11 @@ function SuggestionBoard() {
         </div>
     )
 }
+
+// 4. Route 정의
+export const Route = createFileRoute("/_layout/items")({
+    component: SuggestionBoard,
+    head: () => ({
+        meta: [{ title: "건의사항 게시판" }],
+    }),
+})
