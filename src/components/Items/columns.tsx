@@ -2,8 +2,9 @@ import { useState } from "react"
 import { ColumnDef } from "@tanstack/react-table"
 import { MoreHorizontal, Eye, Pen } from "lucide-react"
 import { format } from "date-fns"
+import { useQueryClient } from "@tanstack/react-query" // 추가
 
-import { ItemPublic } from "@/client"
+import { ItemPublic, UserPublic } from "@/client" // UserPublic 추가
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -23,16 +24,24 @@ import {
     DialogTrigger,
 } from "@/components/ui/dialog"
 
-// [중요] 작성하신 컴포넌트 임포트 (경로 확인해주세요)
-import { EditItem } from "./EditItem" // export function EditItem 이므로 중괄호 {} 필요
-import DeleteItem from "./DeleteItem" // export default DeleteItem 이므로 중괄호 없음
+import { EditItem } from "./EditItem"
+import DeleteItem from "./DeleteItem"
 
 // ----------------------------------------------------------------------
-// 1. Actions 컴포넌트 (수정/삭제 로직 분리)
+// 1. Actions 컴포넌트 (권한 로직 추가)
 // ----------------------------------------------------------------------
-// EditItem이 Dialog 제어권을 외부(부모)에서 받으므로, 여기서 state를 관리합니다.
 const ItemActions = ({ item }: { item: ItemPublic }) => {
     const [showEditDialog, setShowEditDialog] = useState(false)
+    const queryClient = useQueryClient()
+
+    // 캐시된 현재 사용자 정보 가져오기
+    const currentUser = queryClient.getQueryData<UserPublic>(["currentUser"])
+
+    // 권한 확인: 슈퍼유저이거나 작성자 본인인 경우만 true
+    const canManage = currentUser?.is_superuser || currentUser?.id === item.owner_id
+
+    // 권한이 없으면 버튼을 렌더링하지 않음
+    if (!canManage) return null
 
     return (
         <>
@@ -45,8 +54,6 @@ const ItemActions = ({ item }: { item: ItemPublic }) => {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                     <DropdownMenuLabel>관리</DropdownMenuLabel>
-
-                    {/* 수정 버튼: 클릭 시 Dialog state를 true로 변경 */}
                     <DropdownMenuItem
                         onClick={() => setShowEditDialog(true)}
                         className="cursor-pointer"
@@ -54,15 +61,11 @@ const ItemActions = ({ item }: { item: ItemPublic }) => {
                         <Pen className="mr-2 h-4 w-4" />
                         수정하기
                     </DropdownMenuItem>
-
                     <DropdownMenuSeparator />
-
-                    {/* 삭제 컴포넌트: 내부에 DropdownMenuItem이 포함되어 있음 */}
                     <DeleteItem id={item.id} onSuccess={() => {}} />
                 </DropdownMenuContent>
             </DropdownMenu>
 
-            {/* 수정 모달 (Dropdown 밖에서 렌더링) */}
             {showEditDialog && (
                 <EditItem
                     item={item}
@@ -83,9 +86,7 @@ export const columns: ColumnDef<ItemPublic>[] = [
         header: "제목",
         cell: ({ row }) => {
             const item = row.original
-
             return (
-                // [기능: 상세보기] 제목 클릭 시 Read-only Dialog 표시
                 <Dialog>
                     <DialogTrigger asChild>
                         <div className="flex flex-col cursor-pointer group select-none">
@@ -111,7 +112,6 @@ export const columns: ColumnDef<ItemPublic>[] = [
                             </DialogDescription>
                         </DialogHeader>
 
-                        {/* 상세 정보 Body */}
                         <div className="flex flex-col gap-4 mt-2">
                             <div className="flex items-center justify-between text-sm border-b pb-4">
                                 <div className="flex items-center gap-2">
@@ -159,7 +159,6 @@ export const columns: ColumnDef<ItemPublic>[] = [
             const owner = row.original.owner
             const name = owner?.full_name || "알 수 없음"
             const email = owner?.email || ""
-
             return (
                 <div className="flex flex-col">
                     <span className="text-sm font-medium">{name}</span>
